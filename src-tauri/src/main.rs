@@ -4,8 +4,10 @@
 )]
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use notify::{RecommendedWatcher, RecursiveMode, Result, Watcher};
+use serde_json::Value;
 use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayMenuItem};
 use tauri::{Manager, SystemTrayEvent};
 
@@ -20,6 +22,46 @@ fn greet(name: &str) -> String {
 // }
 
 fn main() {
+    let input_path = Path::new("%LOCALAPPDATA%/Programs/hawkeye/config.json");
+
+    let config = {
+        let text = match std::fs::read_to_string(&input_path) {
+            Ok(content) => {
+                println!("Found Config JSON File!");
+                content
+            }
+            Err(e) => {
+                println!("NOT Found Config JSON File!");
+                println!("input_path: {:?}", input_path);
+                let content = r#"{
+                    "watch_directories": [
+                    ]
+                  }"#;
+
+                std::fs::write(&input_path, content).unwrap();
+                String::from(content)
+            }
+        };
+
+        serde_json::from_str::<Value>(&text).unwrap()
+    };
+
+    let watch_directories = config["watch_directories"].as_array().unwrap();
+
+    for directory in watch_directories {
+        println!("{}", directory);
+    }
+
+    let mut watcher = notify::recommended_watcher(|res| match res {
+        Ok(event) => println!("event: {:?}", event),
+        Err(e) => println!("watch error: {:?}", e),
+    })
+    .unwrap();
+
+    watcher
+        .watch(Path::new("."), RecursiveMode::Recursive)
+        .unwrap();
+
     // here `"quit".to_string()` defines the menu item id, and the second parameter is the menu item label.
     let show = CustomMenuItem::new("show".to_string(), "Hide");
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
