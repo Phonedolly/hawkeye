@@ -10,8 +10,15 @@ use std::path::{Path, PathBuf};
 use notify::{RecommendedWatcher, RecursiveMode, Result, Watcher};
 use platform_dirs::AppDirs;
 use serde_json::Value;
-use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayMenuItem};
-use tauri::{Manager, SystemTrayEvent};
+use tauri::{
+    CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
+    Window,
+};
+
+#[derive(Clone, serde::Serialize)]
+struct Payload {
+    message: String,
+}
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -19,11 +26,12 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-// fn read_config()->PathBuf{
-//     tauri::api::path::parse(config, package_info, env, path)
-// }
+#[tauri::command]
+fn from_frontend_get_config(window: Window) -> Vec<Value> {
+    get_config()["watch_directories"].as_array().unwrap().to_vec()
+}
 
-fn main() {
+fn get_config() -> Value {
     let config_path = AppDirs::new(Some("Programs"), false)
         .unwrap()
         .data_dir
@@ -33,7 +41,7 @@ fn main() {
     println!("{}", config_path.display());
 
     let config = {
-        let text = match std::fs::read_to_string(&config_path) {
+        let text = match std::fs::read_to_string(&config_file_path) {
             Ok(content) => {
                 println!("Found Config JSON File!");
                 content
@@ -42,14 +50,18 @@ fn main() {
                 println!("NOT Found Config JSON File!");
                 println!("input_path: {}", config_path.display());
                 let content = r#"{
-  "watch_directories": [
-    ]
+"watch_directories": [
+]
 }"#;
-                let mut config_file = match OpenOptions::new().write(true).open(&config_file_path){
-                    Ok(file)=>file,
-                    Err(_)=>{
+                let mut config_file = match OpenOptions::new().write(true).open(&config_file_path) {
+                    Ok(file) => file,
+                    Err(_) => {
                         fs::create_dir_all(&config_path).unwrap();
-                        OpenOptions::new().create(true).write(true).open(&config_file_path).unwrap()
+                        OpenOptions::new()
+                            .create(true)
+                            .write(true)
+                            .open(&config_file_path)
+                            .unwrap()
                     }
                 };
                 config_file.write_all(content.as_bytes()).unwrap();
@@ -60,6 +72,11 @@ fn main() {
         serde_json::from_str::<Value>(&text).unwrap()
     };
 
+    config
+}
+
+fn main() {
+    let config = get_config();
     let watch_directories = config["watch_directories"].as_array().unwrap();
 
     let mut watcher = notify::recommended_watcher(|res| match res {
@@ -90,7 +107,16 @@ fn main() {
     let tray = SystemTray::new().with_menu(tray_menu);
 
     tauri::Builder::default()
+        .setup(|app| {
+            let main_window = app.get_window("main").unwrap();
+
+            let id = main_window.listen("event", |event| {
+                println!("payload: {:?}", event.payload());
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![from_frontend_get_config])
         .system_tray(tray)
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::DoubleClick {
