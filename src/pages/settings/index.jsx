@@ -25,10 +25,6 @@ export default function Settings(props) {
     getConfig();
   }, []);
 
-  // useEffect(() => {
-  //   console.log(config);
-  // }, [config]);
-
   return (
     <Frame>
       <VStack alignItems="stretch" w="full" spacing="4">
@@ -86,13 +82,11 @@ export default function Settings(props) {
               multiple: true,
             });
             if (selected !== null) {
-              console.log(selected);
+              // to use async function, use for loop
               for (let i = 0; i < selected.length; i++) {
-                console.log(i);
                 if (
                   config.filter((value) => value === selected[i]).length === 0
                 ) {
-                  console.log(1111);
                   setConfig((prevConfig) => prevConfig.concat(selected[i]));
                 } else {
                   await message(`${selected[i]} is alread exists!`, {
