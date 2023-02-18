@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 export default function Header(props) {
   const [appVersion, setAppVersion] = useState("");
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const getAppVersion = async () => setAppVersion(`v` + await getVersion());
     getAppVersion();
   }, []);

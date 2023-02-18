@@ -8,6 +8,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { appWindow, WebviewWindow } from "@tauri-apps/api/window";
+import { emit, listen } from "@tauri-apps/api/event";
 import { open, message } from "@tauri-apps/api/dialog";
 import { invoke } from "@tauri-apps/api/tauri";
 import dynamic from "next/dynamic";
@@ -18,6 +19,7 @@ import { DeleteIcon, Search2Icon } from "@chakra-ui/icons";
 
 export default function Settings(props) {
   const [config, setConfig] = useState([]);
+  const [imediateConfig, setImediateConfig] = useState([]);
   useEffect(() => {
     async function getConfig() {
       setConfig(await invoke("from_frontend_get_config"));
@@ -30,7 +32,22 @@ export default function Settings(props) {
       <VStack alignItems="stretch" w="full" spacing="4">
         {config.map((eachPath, i) => (
           <HStack spacing="3.5">
-            <Input value={eachPath} w="full" />
+            <Input
+              value={eachPath}
+              onChange={(e) => {
+                console.log(e.target.value);
+                setConfig((prevConfig) =>
+                  prevConfig.map((eachPrevConfig, eachPrevConfigIndex) => {
+                    if (i === eachPrevConfigIndex) {
+                      return e.target.value;
+                    } else {
+                      return eachPrevConfig;
+                    }
+                  })
+                );
+              }}
+              w="full"
+            />
             <Button
               w="56"
               leftIcon={<Search2Icon />}
@@ -63,7 +80,9 @@ export default function Settings(props) {
                   );
                 }
               }}
-            >Find Directory</Button>
+            >
+              Find Directory
+            </Button>
             <IconButton
               icon={<DeleteIcon />}
               colorScheme="red"
@@ -100,7 +119,16 @@ export default function Settings(props) {
         >
           Add Path
         </Button>
-        <Button colorScheme="teal">Apply Change</Button>
+        <Button
+          colorScheme="teal"
+          onClick={() => {
+            appWindow.emit("applySettings", {
+              message: config,
+            });
+          }}
+        >
+          Apply Change
+        </Button>
       </VStack>
     </Frame>
   );

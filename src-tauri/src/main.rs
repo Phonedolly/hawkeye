@@ -20,6 +20,11 @@ struct Payload {
     message: String,
 }
 
+const DEFAULT_CONFIG: &str = r#"{
+"watch_directories": [
+]
+}"#;
+
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -28,16 +33,24 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn from_frontend_get_config(window: Window) -> Vec<Value> {
-    get_config()["watch_directories"].as_array().unwrap().to_vec()
+    get_config()["watch_directories"]
+        .as_array()
+        .unwrap()
+        .to_vec()
 }
 
-fn get_config() -> Value {
+fn get_config_path()->(PathBuf, PathBuf){
     let config_path = AppDirs::new(Some("Programs"), false)
         .unwrap()
         .data_dir
         .join("hawkeye");
-
     let config_file_path = config_path.join("config.json");
+
+    (config_path, config_file_path)
+}
+
+fn get_config() -> Value {
+    let (config_path, config_file_path) = get_config_path();
     println!("{}", config_path.display());
 
     let config = {
@@ -49,10 +62,7 @@ fn get_config() -> Value {
             Err(e) => {
                 println!("NOT Found Config JSON File!");
                 println!("input_path: {}", config_path.display());
-                let content = r#"{
-"watch_directories": [
-]
-}"#;
+                let content = &DEFAULT_CONFIG;
                 let mut config_file = match OpenOptions::new().write(true).open(&config_file_path) {
                     Ok(file) => file,
                     Err(_) => {
@@ -108,11 +118,23 @@ fn main() {
 
     tauri::Builder::default()
         .setup(|app| {
+            let (config_path, config_file_path) = get_config_path();
+
             let main_window = app.get_window("main").unwrap();
 
-            let id = main_window.listen("event", |event| {
+            let test_id = main_window.listen("event", |event| {
                 println!("payload: {:?}", event.payload());
             });
+
+            let apply_settings_id = main_window.listen("applySettings", move |event| {
+                
+                let new_config = serde_json::from_str::<Value>(match event.payload() {
+                    Some(new_config) => new_config,
+                    None => &DEFAULT_CONFIG,
+                }).unwrap();
+                fs::write(&config_file_path, serde_json::to_string_pretty(&new_config).unwrap());
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![greet])
