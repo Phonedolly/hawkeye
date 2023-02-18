@@ -16,7 +16,7 @@ export default function Frame(props) {
     <>
       <Header />
       <Box as="main" className="main-content" w="full" mx="auto">
-        <Flex direction="row" pl="6">
+        <Flex direction="row" px="6">
           <SideBar />
           {props.children}
         </Flex>

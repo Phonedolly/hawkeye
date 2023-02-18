@@ -8,11 +8,19 @@
   },
   "package": {
     "productName": "hawkeye",
-    "version": "0.0.0"
+    "version": "0.0.1"
   },
   "tauri": {
     "allowlist": {
       "all": false,
+      "dialog": {
+        "all": false,
+        "ask": false,
+        "confirm": false,
+        "message": true,
+        "open": true,
+        "save": false
+      },
       "shell": {
         "all": false,
         "open": true

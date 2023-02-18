@@ -17,25 +17,22 @@ import NextLink from "next/link";
 const MainNavLink = ({ href, icon, children, isActive, isExternal }) => {
   const router = useRouter();
   const active = (router.asPath === href) || !!isActive;
-  console.log(router)
-  console.log(icon);
   return (
     <NextLink href={href} passHref>
       <HStack
         target={isExternal ? "_blank" : undefined}
-
         spacing="3"
-        fontSize="sm"
+        fontSize="md"
         fontWeight={active ? "Bold" : "medium"}
-        color={active ? "teal.100" : "fg-muted"}
-        _hover={{ color: active ? undefined : "fg" }}
+        color={active ? "teal.400" : "black"}
+        // _hover={{ color: active ? undefined : "fg" }}
       >
         <Center
           w="6"
           h="6"
           borderWidth="1px"
-          bg={active ? "teal.300" : "transparent"}
-          borderColor={active ? "teal.400" : undefined}
+          bg={active ? "teal.500" : "transparent"}
+          borderColor={active ? "teal.300" : undefined}
           rounded="base"
           color={active ? "white" : "teal.500"}
         >
@@ -94,7 +91,7 @@ export default function SideBar(props) {
       pos="sticky"
       overscrollBehavior="contain"
       top="6.5rem"
-      w="280px"
+      w="12em"
       h="calc(100vh - 8.125rem)"
       pr="8"
       pb="6"
