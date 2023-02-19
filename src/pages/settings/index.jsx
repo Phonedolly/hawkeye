@@ -1,10 +1,13 @@
 import {
   Button,
+  Checkbox,
   Container,
   Flex,
   Heading,
   HStack,
   IconButton,
+  Text,
+  Tooltip,
   VStack,
 } from "@chakra-ui/react";
 import { appWindow, WebviewWindow } from "@tauri-apps/api/window";
@@ -15,15 +18,16 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import Frame from "../../components/frame";
 import { Input } from "@chakra-ui/react";
-import { DeleteIcon, Search2Icon } from "@chakra-ui/icons";
+import { DeleteIcon, RepeatIcon, Search2Icon } from "@chakra-ui/icons";
 
 export default function Settings(props) {
   const [config, setConfig] = useState([]);
-  const [imediateConfig, setImediateConfig] = useState([]);
   useEffect(() => {
     async function getConfig() {
       setConfig(await invoke("from_frontend_get_config"));
+      console.log(await invoke("from_frontend_get_config"));
     }
+
     getConfig();
   }, []);
 
@@ -31,11 +35,10 @@ export default function Settings(props) {
     <Frame>
       <VStack alignItems="stretch" w="full" spacing="4">
         {config.map((eachPath, i) => (
-          <HStack spacing="3.5">
+          <HStack spacing="2">
             <Input
-              value={eachPath}
+              value={eachPath.path}
               onChange={(e) => {
-                console.log(e.target.value);
                 setConfig((prevConfig) =>
                   prevConfig.map((eachPrevConfig, eachPrevConfigIndex) => {
                     if (i === eachPrevConfigIndex) {
@@ -46,52 +49,68 @@ export default function Settings(props) {
                   })
                 );
               }}
-              w="full"
             />
-            <Button
-              w="56"
-              leftIcon={<Search2Icon />}
-              onClick={async () => {
-                const selected = await open({
-                  directory: true,
-                  multiple: false,
-                });
-                if (selected !== null) {
-                  setConfig((prevConfig) =>
-                    prevConfig.map((curPrevConfig, index) => {
-                      if (i === index) {
-                        /* path duplicate check */
-                        let isDuplicate = false;
-                        for (let i = 0; i < prevConfig.length; i++) {
-                          if (prevConfig[i] === selected) {
-                            isDuplicate = true;
-                            break;
-                          }
-                        }
-                        if (isDuplicate === true) {
-                          return curPrevConfig;
-                        } else {
-                          return selected;
-                        }
-                      } else {
-                        return curPrevConfig;
-                      }
-                    })
-                  );
-                }
-              }}
-            >
-              Find Directory
-            </Button>
-            <IconButton
-              icon={<DeleteIcon />}
-              colorScheme="red"
-              onClick={() => {
-                setConfig((prev) =>
-                  prev.filter((eachPath, index) => i !== index)
+            <Checkbox
+              isChecked={config[i].recursive_mode}
+              onChange={() => {
+                setConfig((prevConfig) =>
+                  prevConfig.map((eachPrevConfig, eachPrevConfigIndex) => {
+                    if (eachPrevConfigIndex === i) {
+                      eachPrevConfig.recursive_mode =
+                        !eachPrevConfig.recursive_mode;
+                    }
+                    return eachPrevConfig;
+                  })
                 );
               }}
-            />
+            >
+              Watch Recursively
+            </Checkbox>
+            <Tooltip label="find other directory">
+              <IconButton
+                icon={<Search2Icon />}
+                onClick={async () => {
+                  const selected = await open({
+                    directory: true,
+                    multiple: false,
+                  });
+                  if (selected !== null) {
+                    setConfig((prevConfig) =>
+                      prevConfig.map((curPrevConfig, index) => {
+                        if (i === index) {
+                          /* path duplicate check */
+                          let isDuplicate = false;
+                          for (let i = 0; i < prevConfig.length; i++) {
+                            if (prevConfig[i] === selected) {
+                              isDuplicate = true;
+                              break;
+                            }
+                          }
+                          if (isDuplicate === true) {
+                            return curPrevConfig;
+                          } else {
+                            return selected;
+                          }
+                        } else {
+                          return curPrevConfig;
+                        }
+                      })
+                    );
+                  }
+                }}
+              />
+            </Tooltip>
+            <Tooltip label="Delete This Directory From List" placement="left">
+              <IconButton
+                icon={<DeleteIcon />}
+                colorScheme="red"
+                onClick={() => {
+                  setConfig((prev) =>
+                    prev.filter((eachPath, index) => i !== index)
+                  );
+                }}
+              />
+            </Tooltip>
           </HStack>
         ))}
         <Button

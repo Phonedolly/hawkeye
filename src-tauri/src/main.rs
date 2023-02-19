@@ -5,10 +5,11 @@
 
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{self, Path, PathBuf};
 
 use notify::{RecommendedWatcher, RecursiveMode, Result, Watcher};
 use platform_dirs::AppDirs;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 use serde_json::Value;
 use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
@@ -18,6 +19,23 @@ use tauri::{
 #[derive(Clone, serde::Serialize)]
 struct Payload {
     message: String,
+}
+
+struct WatchConfig {
+    path: String,
+    recursive_mode: bool,
+}
+
+impl Serialize for WatchConfig {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut s = serializer.serialize_struct("WatchConfig", 2)?;
+        s.serialize_field("path", &self.path)?;
+        s.serialize_field("recursive_mode", &self.recursive_mode)?;
+        s.end()
+    }
 }
 
 const DEFAULT_CONFIG: &str = r#"{
@@ -32,14 +50,11 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn from_frontend_get_config(window: Window) -> Vec<Value> {
-    get_config()["watch_directories"]
-        .as_array()
-        .unwrap()
-        .to_vec()
+fn from_frontend_get_config(window: Window) -> Vec<WatchConfig> {
+    get_config()
 }
 
-fn get_config_path()->(PathBuf, PathBuf){
+fn get_config_path() -> (PathBuf, PathBuf) {
     let config_path = AppDirs::new(Some("Programs"), false)
         .unwrap()
         .data_dir
@@ -49,9 +64,8 @@ fn get_config_path()->(PathBuf, PathBuf){
     (config_path, config_file_path)
 }
 
-fn get_config() -> Value {
+fn get_config() -> Vec<WatchConfig> {
     let (config_path, config_file_path) = get_config_path();
-    println!("{}", config_path.display());
 
     let config = {
         let text = match std::fs::read_to_string(&config_file_path) {
@@ -82,12 +96,22 @@ fn get_config() -> Value {
         serde_json::from_str::<Value>(&text).unwrap()
     };
 
-    config
+    let mut watch_paths: Vec<WatchConfig> = vec![];
+    for path_and_recursive_config in config["watch_paths"].as_array().unwrap() {
+        watch_paths.push(WatchConfig {
+            path: String::from(path_and_recursive_config["path"].as_str().unwrap()),
+            recursive_mode: path_and_recursive_config["recursive_mode"]
+                .as_bool()
+                .unwrap(),
+        });
+    }
+
+    watch_paths
 }
 
 fn main() {
     let config = get_config();
-    let watch_directories = config["watch_directories"].as_array().unwrap();
+    let mut watching_paths: Vec<String>; // watching directories
 
     let mut watcher = notify::recommended_watcher(|res| match res {
         Ok(event) => println!("event: {:?}", event),
@@ -95,14 +119,14 @@ fn main() {
     })
     .unwrap();
 
-    for directory in watch_directories {
-        println!("{}", directory);
-        watcher
-            .watch(
-                Path::new(directory.as_str().unwrap()),
-                RecursiveMode::Recursive,
-            )
-            .unwrap();
+    for each_config in config {
+        let path = each_config.path;
+        let recursive_mode = if each_config.recursive_mode == true {
+            RecursiveMode::Recursive
+        } else {
+            RecursiveMode::NonRecursive
+        };
+        watcher.watch(Path::new(&path), recursive_mode).unwrap();
     }
 
     // here `"quit".to_string()` defines the menu item id, and the second parameter is the menu item label.
@@ -127,19 +151,23 @@ fn main() {
             });
 
             let apply_settings_id = main_window.listen("applySettings", move |event| {
-                
                 let new_config = serde_json::from_str::<Value>(match event.payload() {
                     Some(new_config) => new_config,
                     None => &DEFAULT_CONFIG,
-                }).unwrap();
-                fs::write(&config_file_path, serde_json::to_string_pretty(&new_config).unwrap());
+                })
+                .unwrap();
+                // let mut new_path;
+                // let mut trash_path;
+                // watcher.unwatch(path)
+                fs::write(
+                    &config_file_path,
+                    serde_json::to_string_pretty(&new_config).unwrap(),
+                );
             });
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet])
-        .invoke_handler(tauri::generate_handler![from_frontend_get_config])
-        .system_tray(tray)
+        .invoke_handler(tauri::generate_handler![greet, from_frontend_get_config])
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::DoubleClick {
                 tray_id,
