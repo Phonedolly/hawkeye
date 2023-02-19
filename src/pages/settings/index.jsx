@@ -21,52 +21,66 @@ import { Input } from "@chakra-ui/react";
 import { DeleteIcon, RepeatIcon, Search2Icon } from "@chakra-ui/icons";
 
 export default function Settings(props) {
-  const [config, setConfig] = useState([]);
+  const [config, setConfig] = useState({});
   useEffect(() => {
     async function getConfig() {
-      setConfig(await invoke("from_frontend_get_config"));
-      console.log(await invoke("from_frontend_get_config"));
+      const fetchedConfig = await invoke("from_frontend_get_config");
+      setConfig(() => ({
+        watch_paths: fetchedConfig.watch_paths,
+      }));
     }
-
     getConfig();
   }, []);
 
   return (
     <Frame>
       <VStack alignItems="stretch" w="full" spacing="4">
-        {config.map((eachPath, i) => (
-          <HStack spacing="2">
+        {config.watch_paths?.map((eachPath, i) => (
+          <HStack spacing="2" key={eachPath.path}>
             <Input
               value={eachPath.path}
               onChange={(e) => {
-                setConfig((prevConfig) =>
-                  prevConfig.map((eachPrevConfig, eachPrevConfigIndex) => {
-                    if (i === eachPrevConfigIndex) {
-                      return e.target.value;
-                    } else {
-                      return eachPrevConfig;
+                setConfig((prevConfig) => ({
+                  ...prevConfig,
+                  watch_paths: prevConfig.watch_paths.map(
+                    (eachPrevConfig, eachPrevConfigIndex) => {
+                      if (i === eachPrevConfigIndex) {
+                        return {
+                          path: e.target.value,
+                          recursive_mode:
+                            prevConfig.watch_paths[i].recursive_mode,
+                        };
+                      } else {
+                        return eachPrevConfig;
+                      }
                     }
-                  })
-                );
+                  ),
+                }));
               }}
             />
             <Checkbox
-              isChecked={config[i].recursive_mode}
+              isChecked={config.watch_paths[i].recursive_mode}
               onChange={() => {
-                setConfig((prevConfig) =>
-                  prevConfig.map((eachPrevConfig, eachPrevConfigIndex) => {
-                    if (eachPrevConfigIndex === i) {
-                      eachPrevConfig.recursive_mode =
-                        !eachPrevConfig.recursive_mode;
+                setConfig((prevConfig) => ({
+                  ...prevConfig,
+                  watch_paths: prevConfig.watch_paths.map(
+                    (eachPrevConfig, eachPrevConfigIndex) => {
+                      if (eachPrevConfigIndex === i) {
+                        return {
+                          path: eachPrevConfig.path,
+                          recursive_mode: !eachPrevConfig.recursive_mode,
+                        };
+                      } else {
+                        return eachPrevConfig;
+                      }
                     }
-                    return eachPrevConfig;
-                  })
-                );
+                  ),
+                }));
               }}
             >
               Watch Recursively
             </Checkbox>
-            <Tooltip label="find other directory">
+            <Tooltip label="Find Other Directory">
               <IconButton
                 icon={<Search2Icon />}
                 onClick={async () => {
@@ -75,27 +89,24 @@ export default function Settings(props) {
                     multiple: false,
                   });
                   if (selected !== null) {
-                    setConfig((prevConfig) =>
-                      prevConfig.map((curPrevConfig, index) => {
-                        if (i === index) {
-                          /* path duplicate check */
-                          let isDuplicate = false;
-                          for (let i = 0; i < prevConfig.length; i++) {
-                            if (prevConfig[i] === selected) {
-                              isDuplicate = true;
-                              break;
-                            }
-                          }
-                          if (isDuplicate === true) {
-                            return curPrevConfig;
-                          } else {
+                    if (
+                      config.watch_paths.filter((value) => value === selected)
+                        .length === 0
+                    ) {
+                      return;
+                    }
+                    setConfig((prevConfig) => ({
+                      ...prevConfig,
+                      watch_paths: prevConfig.watch_paths.map(
+                        (curPrevConfig, index) => {
+                          if (i === index) {
                             return selected;
+                          } else {
+                            return curPrevConfig;
                           }
-                        } else {
-                          return curPrevConfig;
                         }
-                      })
-                    );
+                      ),
+                    }));
                   }
                 }}
               />
@@ -105,9 +116,12 @@ export default function Settings(props) {
                 icon={<DeleteIcon />}
                 colorScheme="red"
                 onClick={() => {
-                  setConfig((prev) =>
-                    prev.filter((eachPath, index) => i !== index)
-                  );
+                  setConfig((prevConfig) => ({
+                    ...prevConfig,
+                    watch_paths: prevConfig.watch_paths.filter(
+                      (_, index) => i !== index
+                    ),
+                  }));
                 }}
               />
             </Tooltip>
@@ -123,9 +137,16 @@ export default function Settings(props) {
               // to use async function, use for loop
               for (let i = 0; i < selected.length; i++) {
                 if (
-                  config.filter((value) => value === selected[i]).length === 0
+                  config.watch_paths.filter((value) => value === selected[i])
+                    .length === 0
                 ) {
-                  setConfig((prevConfig) => prevConfig.concat(selected[i]));
+                  setConfig((prevConfig) => ({
+                    ...prevConfig,
+                    watch_paths: [...prevConfig.watch_paths, {
+                      path: selected[i],
+                      recursive_mode: false,
+                    }],
+                  }));
                 } else {
                   await message(`${selected[i]} is alread exists!`, {
                     title: "Tauri",
