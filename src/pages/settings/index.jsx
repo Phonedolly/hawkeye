@@ -2,6 +2,7 @@ import {
   Button,
   Checkbox,
   Container,
+  Divider,
   Flex,
   Heading,
   HStack,
@@ -22,13 +23,14 @@ import { DeleteIcon, RepeatIcon, Search2Icon } from "@chakra-ui/icons";
 
 export default function Settings(props) {
   const [config, setConfig] = useState({});
+  async function getConfig() {
+    const fetchedConfig = await invoke("from_frontend_get_config");
+    setConfig(() => ({
+      ...fetchedConfig,
+    }));
+    console.log(fetchedConfig);
+  }
   useEffect(() => {
-    async function getConfig() {
-      const fetchedConfig = await invoke("from_frontend_get_config");
-      setConfig(() => ({
-        watch_paths: fetchedConfig.watch_paths,
-      }));
-    }
     getConfig();
   }, []);
 
@@ -166,12 +168,13 @@ export default function Settings(props) {
         >
           Add Path
         </Button>
+        <Divider />
         <Button
           colorScheme="teal"
           onClick={() => {
             appWindow.emit("applySettings", {
               message: config,
-            });
+            }).then(()=>getConfig())
           }}
         >
           Apply Change
