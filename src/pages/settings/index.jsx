@@ -38,25 +38,26 @@ export default function Settings(props) {
         {config.watch_paths?.map((eachPath, i) => (
           <HStack spacing="2" key={eachPath.path}>
             <Input
+              readOnly
               value={eachPath.path}
-              onChange={(e) => {
-                setConfig((prevConfig) => ({
-                  ...prevConfig,
-                  watch_paths: prevConfig.watch_paths.map(
-                    (eachPrevConfig, eachPrevConfigIndex) => {
-                      if (i === eachPrevConfigIndex) {
-                        return {
-                          path: e.target.value,
-                          recursive_mode:
-                            prevConfig.watch_paths[i].recursive_mode,
-                        };
-                      } else {
-                        return eachPrevConfig;
-                      }
-                    }
-                  ),
-                }));
-              }}
+              // onChange={(e) => {
+              //   setConfig((prevConfig) => ({
+              //     ...prevConfig,
+              //     watch_paths: prevConfig.watch_paths.map(
+              //       (eachPrevConfig, eachPrevConfigIndex) => {
+              //         if (i === eachPrevConfigIndex) {
+              //           return {
+              //             path: e.target.value,
+              //             recursive_mode:
+              //               prevConfig.watch_paths[i].recursive_mode,
+              //           };
+              //         } else {
+              //           return eachPrevConfig;
+              //         }
+              //       }
+              //     ),
+              //   }));
+              // }}
             />
             <Checkbox
               isChecked={config.watch_paths[i].recursive_mode}
@@ -88,10 +89,11 @@ export default function Settings(props) {
                     directory: true,
                     multiple: false,
                   });
+                  console.log(selected);
                   if (selected !== null) {
                     if (
                       config.watch_paths.filter((value) => value === selected)
-                        .length === 0
+                        .length !== 0
                     ) {
                       return;
                     }
@@ -100,7 +102,9 @@ export default function Settings(props) {
                       watch_paths: prevConfig.watch_paths.map(
                         (curPrevConfig, index) => {
                           if (i === index) {
-                            return selected;
+                            console.log("rr");
+                            console.log(selected);
+                            return { path: selected, recursive_mode: false };
                           } else {
                             return curPrevConfig;
                           }
@@ -142,10 +146,13 @@ export default function Settings(props) {
                 ) {
                   setConfig((prevConfig) => ({
                     ...prevConfig,
-                    watch_paths: [...prevConfig.watch_paths, {
-                      path: selected[i],
-                      recursive_mode: false,
-                    }],
+                    watch_paths: [
+                      ...prevConfig.watch_paths,
+                      {
+                        path: selected[i],
+                        recursive_mode: false,
+                      },
+                    ],
                   }));
                 } else {
                   await message(`${selected[i]} is alread exists!`, {
