@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 
+use std::cell::RefCell;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{self, Path, PathBuf};
@@ -16,30 +17,45 @@ use tauri::{
     Window,
 };
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct Payload {
     message: String,
 }
 
-struct WatchConfig {
+struct WatchPath {
     path: String,
     recursive_mode: bool,
 }
 
-impl Serialize for WatchConfig {
+impl Serialize for WatchPath {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let mut s = serializer.serialize_struct("WatchConfig", 2)?;
+        let mut s = serializer.serialize_struct("WatchPath", 2)?;
         s.serialize_field("path", &self.path)?;
         s.serialize_field("recursive_mode", &self.recursive_mode)?;
         s.end()
     }
 }
 
+struct Config {
+    watch_paths: Vec<WatchPath>,
+}
+
+impl Serialize for Config {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("Config", 1)?;
+        s.serialize_field("watch_paths", &self.watch_paths)?;
+        s.end()
+    }
+}
+
 const DEFAULT_CONFIG: &str = r#"{
-"watch_directories": [
+"watch_paths": [
 ]
 }"#;
 
@@ -50,7 +66,7 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn from_frontend_get_config(window: Window) -> Vec<WatchConfig> {
+fn from_frontend_get_config(window: Window) -> Config {
     get_config()
 }
 
@@ -64,7 +80,7 @@ fn get_config_path() -> (PathBuf, PathBuf) {
     (config_path, config_file_path)
 }
 
-fn get_config() -> Vec<WatchConfig> {
+fn get_config() -> Config {
     let (config_path, config_file_path) = get_config_path();
 
     let config = {
@@ -96,37 +112,43 @@ fn get_config() -> Vec<WatchConfig> {
         serde_json::from_str::<Value>(&text).unwrap()
     };
 
-    let mut watch_paths: Vec<WatchConfig> = vec![];
+    let mut watch_paths: Vec<WatchPath> = vec![];
     for path_and_recursive_config in config["watch_paths"].as_array().unwrap() {
-        watch_paths.push(WatchConfig {
+        watch_paths.push(WatchPath {
             path: String::from(path_and_recursive_config["path"].as_str().unwrap()),
             recursive_mode: path_and_recursive_config["recursive_mode"]
                 .as_bool()
                 .unwrap(),
         });
     }
+    let config = Config { watch_paths };
 
-    watch_paths
+    config
 }
 
 fn main() {
     let config = get_config();
-    let mut watching_paths: Vec<String>; // watching directories
+    let watching_paths = RefCell::new(vec![]); // watching directories
 
-    let mut watcher = notify::recommended_watcher(|res| match res {
-        Ok(event) => println!("event: {:?}", event),
-        Err(e) => println!("watch error: {:?}", e),
-    })
-    .unwrap();
+    let watcher = RefCell::new(
+        notify::recommended_watcher(|res| match res {
+            Ok(event) => println!("event: {:?}", event),
+            Err(e) => println!("watch error: {:?}", e),
+        })
+        .unwrap(),
+    );
 
-    for each_config in config {
-        let path = each_config.path;
-        let recursive_mode = if each_config.recursive_mode == true {
+    for each_path_config in config.watch_paths {
+        let path = each_path_config.path;
+        let recursive_mode = if each_path_config.recursive_mode == true {
             RecursiveMode::Recursive
         } else {
             RecursiveMode::NonRecursive
         };
-        watcher.watch(Path::new(&path), recursive_mode).unwrap();
+        (*watcher.borrow_mut())
+            .watch(Path::new(&path), recursive_mode)
+            .unwrap();
+        (*(watching_paths.borrow_mut())).push(String::from(&path));
     }
 
     // here `"quit".to_string()` defines the menu item id, and the second parameter is the menu item label.
@@ -151,14 +173,37 @@ fn main() {
             });
 
             let apply_settings_id = main_window.listen("applySettings", move |event| {
-                let new_config = serde_json::from_str::<Value>(match event.payload() {
-                    Some(new_config) => new_config,
-                    None => &DEFAULT_CONFIG,
-                })
-                .unwrap();
+                let orig_config = get_config();
+                let new_config =
+                    &serde_json::from_str::<Value>(&(event.payload().unwrap())).unwrap()["message"];
+
                 // let mut new_path;
                 // let mut trash_path;
                 // watcher.unwatch(path)
+
+                // let paths = new_config[""]
+                // println!("{:?}", new_config);
+                // println!("{:?}", watching_paths);
+
+                /* unwatch all paths */
+                for each_watching_path in &*(watching_paths.borrow_mut()) {
+                    (*(watcher.borrow_mut())).unwatch(Path::new(&each_watching_path));
+                }
+                (*(watching_paths.borrow_mut())).clear();
+
+                println!("{:?}", new_config);
+                /* watch all paths in new config */
+                for each_new_watching_path in new_config["watch_paths"].as_array().unwrap() {
+                    let path = Path::new(each_new_watching_path["path"].as_str().unwrap());
+                    let recursive_mode =
+                        each_new_watching_path["recursive_mode"].as_bool().unwrap();
+                    let recursive_mode = if recursive_mode == true {
+                        RecursiveMode::Recursive
+                    } else {
+                        RecursiveMode::NonRecursive
+                    };
+                    (*(watcher.borrow_mut())).watch(path, recursive_mode);
+                }
                 fs::write(
                     &config_file_path,
                     serde_json::to_string_pretty(&new_config).unwrap(),
