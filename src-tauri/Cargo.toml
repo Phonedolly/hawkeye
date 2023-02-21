@@ -21,6 +21,12 @@ platform-dirs = "0.3.0"
 magick_rust = "0.17.0"
 winrt-notification = "0.5.1"
 
+[dependencies.windows]
+version = "0.44.0"
+features = [
+    "ApplicationModel"
+]
+
 [features]
 # by default Tauri runs in production mode
 # when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL

@@ -12,16 +12,14 @@ import {
   Tooltip,
   VStack,
 } from "@chakra-ui/react";
-import { appWindow, WebviewWindow } from "@tauri-apps/api/window";
-import { emit, listen } from "@tauri-apps/api/event";
 import { open, message } from "@tauri-apps/api/dialog";
 import { invoke } from "@tauri-apps/api/tauri";
-import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import Frame from "../../components/frame";
 import { Input } from "@chakra-ui/react";
-import { DeleteIcon, RepeatIcon, Search2Icon } from "@chakra-ui/icons";
+import { DeleteIcon, Search2Icon } from "@chakra-ui/icons";
 import { v4 as uuid } from "uuid";
+import dynamic from "next/dynamic";
 
 const formats = [
   "APNG",
@@ -37,6 +35,10 @@ const formats = [
 ];
 
 export default function Settings(props) {
+  // import { appWindow, WebviewWindow } from "@tauri-apps/api/window";
+  const { appWindow } = dynamic(() => import("@tauri-apps/api/window"), {
+    ssr: false,
+  });
   const [config, setConfig] = useState({});
   async function getConfig() {
     const fetchedConfig = await invoke("from_frontend_get_config");
@@ -294,7 +296,8 @@ export default function Settings(props) {
                   // JSON.stringify(config.conversion_maps[j])
                   config.conversion_maps[i].src ===
                     config.conversion_maps[j].src &&
-                  config.conversion_maps[i].dst === config.conversion_maps[j].dst
+                  config.conversion_maps[i].dst ===
+                    config.conversion_maps[j].dst
                 ) {
                   conversionMapDuplicate = true;
                   break;
