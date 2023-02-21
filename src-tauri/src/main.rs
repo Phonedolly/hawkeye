@@ -231,7 +231,7 @@ fn main() {
 
                             match convert_image(&image_src, &image_dst) {
                                 Ok(_) => {
-                                    Toast::new(Toast::POWERSHELL_APP_ID)
+                                    Toast::new("com.phonedolly.hawkeye")
                                         .hero(&Path::new(&image_dst), "alt text")
                                         .title("Image Converted!")
                                         .text1(&format!(
