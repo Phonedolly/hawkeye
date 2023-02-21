@@ -7,8 +7,10 @@ use std::cell::RefCell;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{self, Path, PathBuf};
+use std::sync::Once;
 
-use notify::{RecommendedWatcher, RecursiveMode, Result, Watcher};
+use magick_rust::{magick_wand_genesis, MagickWand};
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Result, Watcher};
 use platform_dirs::AppDirs;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use serde_json::Value;
@@ -16,6 +18,10 @@ use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
     Window,
 };
+
+// Used to make sure MagickWand is initialized exactly once. Note that we
+// do not bother shutting down, we simply exit when we're done.
+static START: Once = Once::new();
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct Payload {
@@ -30,7 +36,7 @@ struct WatchPath {
 impl Serialize for WatchPath {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         let mut s = serializer.serialize_struct("WatchPath", 2)?;
         s.serialize_field("path", &self.path)?;
@@ -39,8 +45,26 @@ impl Serialize for WatchPath {
     }
 }
 
+struct ConversionMap {
+    src: String,
+    dst: String,
+}
+
+impl Serialize for ConversionMap {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("ConversionMap", 2)?;
+        s.serialize_field("src", &self.src)?;
+        s.serialize_field("dst", &self.dst)?;
+        s.end()
+    }
+}
+
 struct Config {
     watch_paths: Vec<WatchPath>,
+    conversion_maps: Vec<ConversionMap>,
 }
 
 impl Serialize for Config {
@@ -48,16 +72,24 @@ impl Serialize for Config {
     where
         S: Serializer,
     {
-        let mut s = serializer.serialize_struct("Config", 1)?;
+        let mut s = serializer.serialize_struct("Config", 2)?;
         s.serialize_field("watch_paths", &self.watch_paths)?;
+        s.serialize_field("conversion_maps", &self.conversion_maps)?;
         s.end()
     }
 }
 
 const DEFAULT_CONFIG: &str = r#"{
-"watch_paths": [
-]
-}"#;
+    "watch_paths": [
+    ],
+    "conversion_maps": [
+      {
+        "src": "webp",
+        "dst": "png"
+      }
+    ]
+  }
+"#;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
@@ -113,26 +145,57 @@ fn get_config() -> Config {
     };
 
     let mut watch_paths: Vec<WatchPath> = vec![];
-    for path_and_recursive_config in config["watch_paths"].as_array().unwrap() {
+    let mut conversion_map: Vec<ConversionMap> = vec![];
+    for each_path_config in config["watch_paths"].as_array().unwrap() {
         watch_paths.push(WatchPath {
-            path: String::from(path_and_recursive_config["path"].as_str().unwrap()),
-            recursive_mode: path_and_recursive_config["recursive_mode"]
-                .as_bool()
-                .unwrap(),
+            path: String::from(each_path_config["path"].as_str().unwrap()),
+            recursive_mode: each_path_config["recursive_mode"].as_bool().unwrap(),
         });
     }
-    let config = Config { watch_paths };
+    for each_conversion_map in config["conversion_maps"].as_array().unwrap() {
+        conversion_map.push(ConversionMap {
+            src: String::from(each_conversion_map["src"].as_str().unwrap()),
+            dst: String::from(each_conversion_map["dst"].as_str().unwrap()),
+        });
+    }
+    let config = Config {
+        watch_paths,
+        conversion_maps: conversion_map,
+    };
 
     config
 }
 
+fn convertImage(imageSrc: &Path) {
+    START.call_once(|| {
+        magick_wand_genesis();
+    });
+    let wand = MagickWand::new();
+    match wand.read_image(imageSrc.to_str().unwrap()) {
+        Ok(ok) => ok,
+        Err(_) => {}
+    };
+    match wand.write_image(imageSrc.file_stem().unwrap().to_str().unwrap()) {
+        Ok(_) => println!("Convert Success!"),
+        Err(_) => println!("Convert Error!"),
+    }
+}
+
 fn main() {
     let config = get_config();
+    let conversion_maps: RefCell<Vec<ConversionMap>> = RefCell::new(vec![]);
     let watching_paths = RefCell::new(vec![]); // watching directories
-
     let watcher = RefCell::new(
-        notify::recommended_watcher(|res| match res {
-            Ok(event) => println!("event: {:?}", event),
+        notify::recommended_watcher(|res: Result<Event>| match res {
+            Ok(event) => {
+                // println!("{:?}", event.kind);
+                // println!("event: {:?}", event);
+                // if event.kind.is_create() == true || event.kind.is_modify() == true {
+                if event.kind.is_create() == true {
+                    println!("{:?}", event.paths);
+                    convertImage(event.paths.first().unwrap());
+                }
+            }
             Err(e) => println!("watch error: {:?}", e),
         })
         .unwrap(),
@@ -145,10 +208,18 @@ fn main() {
         } else {
             RecursiveMode::NonRecursive
         };
-        (*watcher.borrow_mut())
-            .watch(Path::new(&path), recursive_mode)
-            .unwrap();
+        match (*watcher.borrow_mut()).watch(Path::new(&path), recursive_mode) {
+            Err(e) => println!("{:?}", e),
+            _ => (),
+        }
         (*(watching_paths.borrow_mut())).push(String::from(&path));
+    }
+
+    for each_conversion_mapping in config.conversion_maps {
+        (*(conversion_maps.borrow_mut())).push(ConversionMap {
+            src: each_conversion_mapping.src,
+            dst: each_conversion_mapping.dst,
+        });
     }
 
     // here `"quit".to_string()` defines the menu item id, and the second parameter is the menu item label.
@@ -163,6 +234,7 @@ fn main() {
     let tray = SystemTray::new().with_menu(tray_menu);
 
     tauri::Builder::default()
+        .system_tray(tray)
         .setup(|app| {
             let (config_path, config_file_path) = get_config_path();
 
@@ -173,21 +245,15 @@ fn main() {
             });
 
             let apply_settings_id = main_window.listen("applySettings", move |event| {
-                let orig_config = get_config();
                 let new_config =
                     &serde_json::from_str::<Value>(&(event.payload().unwrap())).unwrap()["message"];
 
-                // let mut new_path;
-                // let mut trash_path;
-                // watcher.unwatch(path)
-
-                // let paths = new_config[""]
-                // println!("{:?}", new_config);
-                // println!("{:?}", watching_paths);
-
                 /* unwatch all paths */
                 for each_watching_path in &*(watching_paths.borrow_mut()) {
-                    (*(watcher.borrow_mut())).unwatch(Path::new(&each_watching_path));
+                    (*(watcher.borrow_mut()))
+                        .unwatch(Path::new(&each_watching_path))
+                        .unwrap();
+                    println!("removed {} from watching_paths", each_watching_path);
                 }
                 (*(watching_paths.borrow_mut())).clear();
 
@@ -202,12 +268,22 @@ fn main() {
                     } else {
                         RecursiveMode::NonRecursive
                     };
-                    (*(watcher.borrow_mut())).watch(path, recursive_mode);
+                    (*(watcher.borrow_mut()))
+                        .watch(path, recursive_mode)
+                        .unwrap();
+                    (*(watching_paths.borrow_mut())).push(String::from(
+                        each_new_watching_path["path"].as_str().unwrap(),
+                    ));
+                    println!(
+                        "add {} to watching_paths",
+                        each_new_watching_path["path"].as_str().unwrap()
+                    );
                 }
                 fs::write(
                     &config_file_path,
                     serde_json::to_string_pretty(&new_config).unwrap(),
-                );
+                )
+                .unwrap();
             });
 
             Ok(())

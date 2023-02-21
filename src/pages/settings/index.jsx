@@ -7,6 +7,7 @@ import {
   Heading,
   HStack,
   IconButton,
+  Select,
   Text,
   Tooltip,
   VStack,
@@ -20,6 +21,20 @@ import { useEffect, useState } from "react";
 import Frame from "../../components/frame";
 import { Input } from "@chakra-ui/react";
 import { DeleteIcon, RepeatIcon, Search2Icon } from "@chakra-ui/icons";
+import { v4 as uuid } from "uuid";
+
+const formats = [
+  "APNG",
+  "AVIF",
+  "GIF",
+  "JPEG",
+  "PNG",
+  "SVG",
+  "WebP",
+  "BMP",
+  "ICO",
+  "TIFF",
+];
 
 export default function Settings(props) {
   const [config, setConfig] = useState({});
@@ -38,7 +53,7 @@ export default function Settings(props) {
     <Frame>
       <VStack alignItems="stretch" w="full" spacing="4">
         {config.watch_paths?.map((eachPath, i) => (
-          <HStack spacing="2" key={eachPath.path}>
+          <HStack spacing="2" key={uuid()}>
             <Input
               readOnly
               value={eachPath.path}
@@ -169,12 +184,140 @@ export default function Settings(props) {
           Add Path
         </Button>
         <Divider />
+        <HStack justifyContent="space-evenly" pr="8">
+          <Heading size="sm">Input Format</Heading>
+          <Heading size="sm">➡️</Heading>
+          <Heading size="sm">Output Format</Heading>
+        </HStack>
+        {config.conversion_maps?.map(
+          (eachConversionMap, eachConversionMapIndex) => (
+            <HStack>
+              <Select
+                key={uuid()}
+                value={eachConversionMap.src || "WebP"}
+                onChange={(e) => {
+                  setConfig((prevConfig) => ({
+                    ...prevConfig,
+                    conversion_maps: prevConfig.conversion_maps.map(
+                      (eachConversionMapping, eachConversionMappingIndex) => {
+                        if (
+                          eachConversionMapIndex === eachConversionMappingIndex
+                        ) {
+                          return {
+                            src: e.target.value,
+                            dst: eachConversionMapping.dst,
+                          };
+                        } else {
+                          return eachConversionMapping;
+                        }
+                      }
+                    ),
+                  }));
+                }}
+              >
+                {formats.map((eachFormat) => (
+                  <option value={eachFormat}>{eachFormat}</option>
+                ))}
+              </Select>
+              <Select
+                key={uuid()}
+                // placeholder="webp"
+                value={eachConversionMap.dst || "PNG"}
+                onChange={(e) => {
+                  setConfig((prevConfig) => ({
+                    ...prevConfig,
+                    conversion_maps: prevConfig.conversion_maps.map(
+                      (eachConversionMapping, eachConversionMappingIndex) => {
+                        if (
+                          eachConversionMapIndex === eachConversionMappingIndex
+                        ) {
+                          return {
+                            src: eachConversionMapping.src,
+                            dst: e.target.value,
+                          };
+                        } else {
+                          return eachConversionMapping;
+                        }
+                      }
+                    ),
+                  }));
+                }}
+              >
+                {formats.map((eachFormat) => (
+                  <option value={eachFormat}>{eachFormat}</option>
+                ))}
+              </Select>
+              <Tooltip
+                label="Delete This Conversion Mapping From List"
+                placement="left"
+              >
+                <IconButton
+                  icon={<DeleteIcon />}
+                  colorScheme="red"
+                  onClick={() => {
+                    setConfig((prevConfig) => ({
+                      ...prevConfig,
+                      conversion_maps: prevConfig.conversion_maps.filter(
+                        (_, index) => eachConversionMapIndex !== index
+                      ),
+                    }));
+                  }}
+                />
+              </Tooltip>
+            </HStack>
+          )
+        )}
+        <Button
+          onClick={() => {
+            setConfig((prevConfig) => ({
+              ...prevConfig,
+              conversion_maps: prevConfig.conversion_maps.concat({
+                src: "WebP",
+                dst: "PNG",
+              }),
+            }));
+          }}
+        >
+          Add Conversion Mapping
+        </Button>
+        <Divider />
         <Button
           colorScheme="teal"
-          onClick={() => {
-            appWindow.emit("applySettings", {
-              message: config,
-            }).then(()=>getConfig())
+          onClick={async () => {
+            let conversionMapDuplicate = false;
+            for (let i = 0; i < config.conversion_maps.length - 1; i++) {
+              for (let j = i + 1; j < config.conversion_maps.length; j++) {
+                console.log(JSON.stringify(config.conversion_maps[i]));
+                console.log(JSON.stringify(config.conversion_maps[j]));
+                if (
+                  // JSON.stringify(config.conversion_maps[i]) ===
+                  // JSON.stringify(config.conversion_maps[j])
+                  config.conversion_maps[i].src ===
+                    config.conversion_maps[j].src &&
+                  config.conversion_maps[i].dst === config.conversion_maps[j].dst
+                ) {
+                  conversionMapDuplicate = true;
+                  break;
+                }
+              }
+              if (conversionMapDuplicate === true) {
+                break;
+              }
+            }
+            console.log(conversionMapDuplicate);
+            if (conversionMapDuplicate === true) {
+              await message(`There is a Duplicate Conversion Mapping!`, {
+                title: "Tauri",
+                type: "error",
+              });
+              return;
+            }
+            // config.conversion_maps.forEach(())
+            appWindow
+              .emit("applySettings", {
+                message: config,
+              })
+              .then(() => getConfig());
           }}
         >
           Apply Change
