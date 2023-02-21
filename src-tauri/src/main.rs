@@ -4,13 +4,13 @@
 )]
 
 use std::cell::RefCell;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::Write;
-use std::path::{self, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::Once;
 
-use magick_rust::{magick_wand_genesis, MagickWand};
-use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Result, Watcher};
+use magick_rust::{magick_wand_genesis, MagickError, MagickWand};
+use notify::{Event, RecursiveMode, Result as NotifyResult, Watcher};
 use platform_dirs::AppDirs;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use serde_json::Value;
@@ -18,6 +18,7 @@ use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
     Window,
 };
+use winrt_notification::Toast;
 
 // Used to make sure MagickWand is initialized exactly once. Note that we
 // do not bother shutting down, we simply exit when we're done.
@@ -166,34 +167,84 @@ fn get_config() -> Config {
     config
 }
 
-fn convertImage(imageSrc: &Path) {
+fn convert_image(image_src: &str, image_dst: &str) -> Result<String, MagickError> {
     START.call_once(|| {
         magick_wand_genesis();
     });
     let wand = MagickWand::new();
-    match wand.read_image(imageSrc.to_str().unwrap()) {
-        Ok(ok) => ok,
-        Err(_) => {}
+    match wand.read_image(image_src) {
+        Ok(ok) => (),
+        Err(e) => return Err(e),
     };
-    match wand.write_image(imageSrc.file_stem().unwrap().to_str().unwrap()) {
-        Ok(_) => println!("Convert Success!"),
-        Err(_) => println!("Convert Error!"),
+    match wand.write_image(image_dst) {
+        Ok(_) => Ok(String::from("Convert Success")),
+        Err(e) => Err(e),
     }
 }
 
 fn main() {
     let config = get_config();
-    let conversion_maps: RefCell<Vec<ConversionMap>> = RefCell::new(vec![]);
+    // let conversion_maps: RefCell<Vec<ConversionMap>> = RefCell::new(vec![]);
     let watching_paths = RefCell::new(vec![]); // watching directories
     let watcher = RefCell::new(
-        notify::recommended_watcher(|res: Result<Event>| match res {
+        notify::recommended_watcher(|res: NotifyResult<Event>| match res {
             Ok(event) => {
-                // println!("{:?}", event.kind);
-                // println!("event: {:?}", event);
-                // if event.kind.is_create() == true || event.kind.is_modify() == true {
                 if event.kind.is_create() == true {
-                    println!("{:?}", event.paths);
-                    convertImage(event.paths.first().unwrap());
+                    let src_ext = String::from(
+                        Path::new(event.paths.first().unwrap())
+                            .extension()
+                            .unwrap()
+                            .to_str()
+                            .unwrap(),
+                    );
+                    println!(
+                        "{}",
+                        event
+                            .paths
+                            .first()
+                            .unwrap()
+                            .file_stem()
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                    );
+                    let conversion_maps = get_config().conversion_maps;
+                    for mapping in conversion_maps {
+                        if src_ext.to_uppercase().eq(&mapping.src.to_uppercase()) == true {
+                            let dst_ext = mapping.dst;
+                            let image_src = event.paths.first().unwrap().to_str().unwrap();
+                            let image_dst = format!(
+                                "{}.{}",
+                                event.paths.first().unwrap().to_str().unwrap(),
+                                dst_ext.to_lowercase()
+                            );
+                            /* Handling Duplicate Image Name */
+                            let image_dst = match Path::new(&image_dst).exists() {
+                                false => image_dst,
+                                true => format!(
+                                    "{}.new.{}",
+                                    event.paths.first().unwrap().to_str().unwrap(),
+                                    dst_ext.to_lowercase()
+                                ),
+                            };
+                            std::thread::sleep(std::time::Duration::from_secs(1)); // to wait file download
+
+                            match convert_image(&image_src, &image_dst) {
+                                Ok(_) => {
+                                    Toast::new(Toast::POWERSHELL_APP_ID)
+                                        .hero(&Path::new(&image_dst), "alt text")
+                                        .title("Image Converted!")
+                                        .text1(&format!(
+                                            "Original Image {} is Saved to {}",
+                                            &image_src, &image_dst
+                                        ))
+                                        .show()
+                                        .expect("Unable to Show Toast!");
+                                }
+                                Err(e) => println!("{:?}", e),
+                            }
+                        }
+                    }
                 }
             }
             Err(e) => println!("watch error: {:?}", e),
@@ -215,12 +266,12 @@ fn main() {
         (*(watching_paths.borrow_mut())).push(String::from(&path));
     }
 
-    for each_conversion_mapping in config.conversion_maps {
-        (*(conversion_maps.borrow_mut())).push(ConversionMap {
-            src: each_conversion_mapping.src,
-            dst: each_conversion_mapping.dst,
-        });
-    }
+    // for each_conversion_mapping in config.conversion_maps {
+    //     (*(conversion_maps.borrow_mut())).push(ConversionMap {
+    //         src: each_conversion_mapping.src,
+    //         dst: each_conversion_mapping.dst,
+    //     });
+    // }
 
     // here `"quit".to_string()` defines the menu item id, and the second parameter is the menu item label.
     let show = CustomMenuItem::new("show".to_string(), "Hide");
@@ -257,7 +308,6 @@ fn main() {
                 }
                 (*(watching_paths.borrow_mut())).clear();
 
-                println!("{:?}", new_config);
                 /* watch all paths in new config */
                 for each_new_watching_path in new_config["watch_paths"].as_array().unwrap() {
                     let path = Path::new(each_new_watching_path["path"].as_str().unwrap());

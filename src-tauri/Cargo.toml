@@ -19,6 +19,7 @@ tauri = { version = "1.2", features = ["dialog-message", "dialog-open", "shell-o
 notify = "5.1.0"
 platform-dirs = "0.3.0"
 magick_rust = "0.17.0"
+winrt-notification = "0.5.1"
 
 [features]
 # by default Tauri runs in production mode
