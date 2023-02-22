@@ -1,4 +1,11 @@
-import { InfoIcon, RepeatClockIcon, SettingsIcon } from "@chakra-ui/icons";
+import {
+  ArrowRightIcon,
+  AttachmentIcon,
+  ChevronRightIcon,
+  InfoIcon,
+  RepeatClockIcon,
+  SettingsIcon,
+} from "@chakra-ui/icons";
 import {
   Badge,
   Box,
@@ -16,7 +23,7 @@ import NextLink from "next/link";
 
 const MainNavLink = ({ href, icon, children, isActive, isExternal }) => {
   const router = useRouter();
-  const active = (router.asPath === href) || !!isActive;
+  const active = router.asPath === href || !!isActive;
   return (
     <NextLink href={href} passHref>
       <HStack
@@ -49,6 +56,11 @@ export const mainNavLinks = [
     icon: <InfoIcon />,
     href: "/",
     label: "Insight",
+  },
+  {
+    icon: <AttachmentIcon />,
+    href: "/convert",
+    label: "Convert",
   },
   {
     icon: <RepeatClockIcon />,

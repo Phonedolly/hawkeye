@@ -19,20 +19,8 @@ import Frame from "../../components/frame";
 import { Input } from "@chakra-ui/react";
 import { DeleteIcon, Search2Icon } from "@chakra-ui/icons";
 import { v4 as uuid } from "uuid";
-import dynamic from "next/dynamic";
-
-const formats = [
-  "APNG",
-  "AVIF",
-  "GIF",
-  "JPEG",
-  "PNG",
-  "SVG",
-  "WebP",
-  "BMP",
-  "ICO",
-  "TIFF",
-];
+// import dynamic from "next/dynamic";
+import formats from '../../lib/formats'
 
 export default function Settings(props) {
   const [config, setConfig] = useState({});
@@ -42,14 +30,14 @@ export default function Settings(props) {
     setConfig(() => ({
       ...fetchedConfig,
     }));
-    console.log(fetchedConfig);
   }
   useEffect(() => {
     getConfig();
   }, []);
   return (
     <Frame>
-      <VStack alignItems="stretch" w="full" spacing="4">
+      <VStack alignItems="stretch" w="full" spacing="4" mb="6">
+        <Heading>Settings</Heading>
         {config.watch_paths?.map((eachPath, i) => (
           <HStack spacing="2" key={uuid()}>
             <Input readOnly value={eachPath.path} />

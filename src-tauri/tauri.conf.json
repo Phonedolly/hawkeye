@@ -21,6 +21,10 @@
         "open": true,
         "save": false
       },
+      "protocol": {
+        "asset": true,
+        "assetScope": []
+      },
       "shell": {
         "all": false,
         "open": true
@@ -63,7 +67,7 @@
       }
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"
     },
     "systemTray": {
       "iconPath": "icons/icon.png",
@@ -75,6 +79,7 @@
     "windows": [
       {
         "fullscreen": false,
+        "fileDropEnabled": true,
         "height": 600,
         "title": "hawkeye",
         "width": 800,
