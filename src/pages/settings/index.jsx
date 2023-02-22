@@ -35,10 +35,6 @@ const formats = [
 ];
 
 export default function Settings(props) {
-  // import { appWindow, WebviewWindow } from "@tauri-apps/api/window";
-  // const { appWindow } = dynamic(() => import("@tauri-apps/api/window"), {
-  //   ssr: false,
-  // });
   const [config, setConfig] = useState({});
   const [modified, setModified] = useState(false);
   async function getConfig() {
@@ -56,31 +52,7 @@ export default function Settings(props) {
       <VStack alignItems="stretch" w="full" spacing="4">
         {config.watch_paths?.map((eachPath, i) => (
           <HStack spacing="2" key={uuid()}>
-            <Input
-              readOnly
-              value={eachPath.path}
-              onChange={()=>{
-                setModified(true);
-              }}
-              // onChange={(e) => {
-              //   setConfig((prevConfig) => ({
-              //     ...prevConfig,
-              //     watch_paths: prevConfig.watch_paths.map(
-              //       (eachPrevConfig, eachPrevConfigIndex) => {
-              //         if (i === eachPrevConfigIndex) {
-              //           return {
-              //             path: e.target.value,
-              //             recursive_mode:
-              //               prevConfig.watch_paths[i].recursive_mode,
-              //           };
-              //         } else {
-              //           return eachPrevConfig;
-              //         }
-              //       }
-              //     ),
-              //   }));
-              // }}
-            />
+            <Input readOnly value={eachPath.path} />
             <Checkbox
               isChecked={config.watch_paths[i].recursive_mode}
               onChange={() => {
@@ -108,12 +80,10 @@ export default function Settings(props) {
               <IconButton
                 icon={<Search2Icon />}
                 onClick={async () => {
-                  setModified(true);
                   const selected = await open({
                     directory: true,
                     multiple: false,
                   });
-                  console.log(selected);
                   if (selected !== null) {
                     if (
                       config.watch_paths.filter((value) => value === selected)
@@ -121,13 +91,12 @@ export default function Settings(props) {
                     ) {
                       return;
                     }
+                    setModified(true);
                     setConfig((prevConfig) => ({
                       ...prevConfig,
                       watch_paths: prevConfig.watch_paths.map(
                         (curPrevConfig, index) => {
                           if (i === index) {
-                            console.log("rr");
-                            console.log(selected);
                             return { path: selected, recursive_mode: false };
                           } else {
                             return curPrevConfig;
@@ -327,7 +296,7 @@ export default function Settings(props) {
           isDisabled={!modified}
           colorScheme="teal"
           onClick={async () => {
-            setModified(false)
+            setModified(false);
             let conversionMapDuplicate = false;
             for (let i = 0; i < config.conversion_maps.length - 1; i++) {
               for (let j = i + 1; j < config.conversion_maps.length; j++) {
@@ -355,7 +324,6 @@ export default function Settings(props) {
               });
               return;
             }
-            // config.conversion_maps.forEach(())
             const { appWindow } = await import("@tauri-apps/api/window");
             console.log(appWindow);
             appWindow

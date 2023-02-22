@@ -189,7 +189,6 @@ fn convert_image(image_src: &str, image_dst: &str) -> Result<String, MagickError
 
 fn main() {
     let config = get_config();
-    // let conversion_maps: RefCell<Vec<ConversionMap>> = RefCell::new(vec![]);
     let watching_paths = RefCell::new(vec![]); // watching directories
     let watcher = RefCell::new(
         notify::recommended_watcher(|res: NotifyResult<Event>| match res {
@@ -270,13 +269,6 @@ fn main() {
         }
         (*(watching_paths.borrow_mut())).push(String::from(&path));
     }
-
-    // for each_conversion_mapping in config.conversion_maps {
-    //     (*(conversion_maps.borrow_mut())).push(ConversionMap {
-    //         src: each_conversion_mapping.src,
-    //         dst: each_conversion_mapping.dst,
-    //     });
-    // }
 
     // here `"quit".to_string()` defines the menu item id, and the second parameter is the menu item label.
     let show = CustomMenuItem::new("show".to_string(), "Hide");
