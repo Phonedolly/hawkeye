@@ -13,7 +13,7 @@ use magick_rust::{magick_wand_genesis, MagickError, MagickWand};
 use notify::{Event, RecursiveMode, Result as NotifyResult, Watcher};
 use platform_dirs::AppDirs;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
-use serde_json::Value;
+use serde_json::{json, Value};
 use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
     Window,
@@ -102,6 +102,34 @@ fn greet(name: &str) -> String {
 #[tauri::command]
 fn from_frontend_get_config() -> Config {
     get_config()
+}
+
+#[tauri::command]
+fn from_frontend_convert_directly(payload: &str) -> String {
+    let src_and_format = serde_json::from_str::<Value>(payload).unwrap();
+
+    let src_path = src_and_format["src_path"].as_str().unwrap();
+    let format = src_and_format["dst_format"].as_str().unwrap();
+    let dst_path = Path::new(format!("{}.{}", src_path, format).as_str());
+    let dst_path_as_str = match dst_path.exists() {
+        false => dst_path.to_str().unwrap(),
+        true => format!("{}.new.{}", src_path, format).as_str(),
+    };
+    match convert_image(src_path, dst_path_as_str) {
+        Ok(_) => {
+            return json!({
+                "is_success": true,
+                "dst_path": dst_path,
+            })
+            .to_string()
+        }
+        Err(_) => {
+            return json!({
+                "is_success": false
+            })
+            .to_string()
+        }
+    }
 }
 
 fn get_config_path() -> (PathBuf, PathBuf) {
