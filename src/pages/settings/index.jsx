@@ -40,6 +40,7 @@ export default function Settings(props) {
   //   ssr: false,
   // });
   const [config, setConfig] = useState({});
+  const [modified, setModified] = useState(false);
   async function getConfig() {
     const fetchedConfig = await invoke("from_frontend_get_config");
     setConfig(() => ({
@@ -58,6 +59,9 @@ export default function Settings(props) {
             <Input
               readOnly
               value={eachPath.path}
+              onChange={()=>{
+                setModified(true);
+              }}
               // onChange={(e) => {
               //   setConfig((prevConfig) => ({
               //     ...prevConfig,
@@ -80,6 +84,7 @@ export default function Settings(props) {
             <Checkbox
               isChecked={config.watch_paths[i].recursive_mode}
               onChange={() => {
+                setModified(true);
                 setConfig((prevConfig) => ({
                   ...prevConfig,
                   watch_paths: prevConfig.watch_paths.map(
@@ -103,6 +108,7 @@ export default function Settings(props) {
               <IconButton
                 icon={<Search2Icon />}
                 onClick={async () => {
+                  setModified(true);
                   const selected = await open({
                     directory: true,
                     multiple: false,
@@ -138,6 +144,7 @@ export default function Settings(props) {
                 icon={<DeleteIcon />}
                 colorScheme="red"
                 onClick={() => {
+                  setModified(true);
                   setConfig((prevConfig) => ({
                     ...prevConfig,
                     watch_paths: prevConfig.watch_paths.filter(
@@ -151,6 +158,7 @@ export default function Settings(props) {
         ))}
         <Button
           onClick={async () => {
+            setModified(true);
             const selected = await open({
               directory: true,
               multiple: true,
@@ -197,6 +205,7 @@ export default function Settings(props) {
                 key={uuid()}
                 value={eachConversionMap.src || "WebP"}
                 onChange={(e) => {
+                  setModified(true);
                   setConfig((prevConfig) => ({
                     ...prevConfig,
                     conversion_maps: prevConfig.conversion_maps.map(
@@ -225,6 +234,7 @@ export default function Settings(props) {
                 // placeholder="webp"
                 value={eachConversionMap.dst || "PNG"}
                 onChange={(e) => {
+                  setModified(true);
                   setConfig((prevConfig) => ({
                     ...prevConfig,
                     conversion_maps: prevConfig.conversion_maps.map(
@@ -256,6 +266,7 @@ export default function Settings(props) {
                   icon={<DeleteIcon />}
                   colorScheme="red"
                   onClick={() => {
+                    setModified(true);
                     setConfig((prevConfig) => ({
                       ...prevConfig,
                       conversion_maps: prevConfig.conversion_maps.filter(
@@ -270,6 +281,7 @@ export default function Settings(props) {
         )}
         <Button
           onClick={() => {
+            setModified(true);
             setConfig((prevConfig) => ({
               ...prevConfig,
               conversion_maps: prevConfig.conversion_maps.concat({
@@ -283,21 +295,23 @@ export default function Settings(props) {
         </Button>
         <Divider />
         <Checkbox
-          value={config.silent_start}
-          onChange={(e) =>
+          isChecked={config.silent_start}
+          onChange={(e) => {
+            setModified(true);
             setConfig((prevConfig) => ({
               ...prevConfig,
               silent_start: prevConfig.silent_start
                 ? !prevConfig.silent_start
                 : true,
-            }))
-          }
+            }));
+          }}
         >
           Start as Tray Icon
         </Checkbox>
         <Checkbox
-          value={config.launch_on_system_start}
+          isChecked={config.launch_on_system_start}
           onChange={(e) => {
+            setModified(true);
             setConfig((prevConfig) => ({
               ...prevConfig,
               launch_on_system_start: prevConfig.launch_on_system_start
@@ -310,16 +324,16 @@ export default function Settings(props) {
         </Checkbox>
         <Divider />
         <Button
+          isDisabled={!modified}
           colorScheme="teal"
           onClick={async () => {
+            setModified(false)
             let conversionMapDuplicate = false;
             for (let i = 0; i < config.conversion_maps.length - 1; i++) {
               for (let j = i + 1; j < config.conversion_maps.length; j++) {
                 console.log(JSON.stringify(config.conversion_maps[i]));
                 console.log(JSON.stringify(config.conversion_maps[j]));
                 if (
-                  // JSON.stringify(config.conversion_maps[i]) ===
-                  // JSON.stringify(config.conversion_maps[j])
                   config.conversion_maps[i].src ===
                     config.conversion_maps[j].src &&
                   config.conversion_maps[i].dst ===

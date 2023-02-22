@@ -288,7 +288,7 @@ fn main() {
         .add_item(quit);
 
     let tray = SystemTray::new().with_menu(tray_menu);
-
+    let p = Path::new("../tauri.conf.hideStart.json").to_str().unwrap();
     tauri::Builder::default()
         .system_tray(tray)
         .setup(|app| {
@@ -385,7 +385,11 @@ fn main() {
             _ => {}
         })
         // .run(tauri::generate_context!())
-        .build(tauri::generate_context!())
+        .build(if config.silent_start == true {
+            tauri::generate_context!("./silentStartConf/tauri.conf.json")
+        } else {
+            tauri::generate_context!()
+        })
         .expect("error while running tauri application")
         .run(|app, event| match event {
             tauri::RunEvent::WindowEvent { label, event, .. } => match event {
