@@ -36,9 +36,9 @@ const formats = [
 
 export default function Settings(props) {
   // import { appWindow, WebviewWindow } from "@tauri-apps/api/window";
-  const { appWindow } = dynamic(() => import("@tauri-apps/api/window"), {
-    ssr: false,
-  });
+  // const { appWindow } = dynamic(() => import("@tauri-apps/api/window"), {
+  //   ssr: false,
+  // });
   const [config, setConfig] = useState({});
   async function getConfig() {
     const fetchedConfig = await invoke("from_frontend_get_config");
@@ -50,7 +50,6 @@ export default function Settings(props) {
   useEffect(() => {
     getConfig();
   }, []);
-
   return (
     <Frame>
       <VStack alignItems="stretch" w="full" spacing="4">
@@ -283,6 +282,33 @@ export default function Settings(props) {
           Add Conversion Mapping
         </Button>
         <Divider />
+        <Checkbox
+          value={config.silent_start}
+          onChange={(e) =>
+            setConfig((prevConfig) => ({
+              ...prevConfig,
+              silent_start: prevConfig.silent_start
+                ? !prevConfig.silent_start
+                : true,
+            }))
+          }
+        >
+          Start as Tray Icon
+        </Checkbox>
+        <Checkbox
+          value={config.launch_on_system_start}
+          onChange={(e) => {
+            setConfig((prevConfig) => ({
+              ...prevConfig,
+              launch_on_system_start: prevConfig.launch_on_system_start
+                ? !prevConfig.launch_on_system_start
+                : true,
+            }));
+          }}
+        >
+          Launch On System Start
+        </Checkbox>
+        <Divider />
         <Button
           colorScheme="teal"
           onClick={async () => {
@@ -316,6 +342,8 @@ export default function Settings(props) {
               return;
             }
             // config.conversion_maps.forEach(())
+            const { appWindow } = await import("@tauri-apps/api/window");
+            console.log(appWindow);
             appWindow
               .emit("applySettings", {
                 message: config,

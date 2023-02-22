@@ -66,6 +66,8 @@ impl Serialize for ConversionMap {
 struct Config {
     watch_paths: Vec<WatchPath>,
     conversion_maps: Vec<ConversionMap>,
+    silent_start: bool,
+    launch_on_system_start: bool,
 }
 
 impl Serialize for Config {
@@ -73,23 +75,22 @@ impl Serialize for Config {
     where
         S: Serializer,
     {
-        let mut s = serializer.serialize_struct("Config", 2)?;
+        let mut s = serializer.serialize_struct("Config", 4)?;
         s.serialize_field("watch_paths", &self.watch_paths)?;
         s.serialize_field("conversion_maps", &self.conversion_maps)?;
+        s.serialize_field("silent_start", &self.silent_start)?;
+        s.serialize_field("launch_on_system_start", &self.launch_on_system_start)?;
         s.end()
     }
 }
 
 const DEFAULT_CONFIG: &str = r#"{
-    "watch_paths": [
-    ],
     "conversion_maps": [
-      {
-        "src": "webp",
-        "dst": "png"
-      }
-    ]
-  }
+    ],
+    "watch_paths": [],
+    "silent_start": false,
+    "launch_on_system_start": false
+}
 "#;
 
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
@@ -99,7 +100,7 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-fn from_frontend_get_config(window: Window) -> Config {
+fn from_frontend_get_config() -> Config {
     get_config()
 }
 
@@ -122,10 +123,10 @@ fn get_config() -> Config {
                 println!("Found Config JSON File!");
                 content
             }
-            Err(e) => {
+            Err(_) => {
                 println!("NOT Found Config JSON File!");
                 println!("input_path: {}", config_path.display());
-                let content = &DEFAULT_CONFIG;
+                let content = DEFAULT_CONFIG;
                 let mut config_file = match OpenOptions::new().write(true).open(&config_file_path) {
                     Ok(file) => file,
                     Err(_) => {
@@ -159,9 +160,13 @@ fn get_config() -> Config {
             dst: String::from(each_conversion_map["dst"].as_str().unwrap()),
         });
     }
+    let silent_start = config["silent_start"].as_bool().unwrap();
+    let launch_on_system_start = config["launch_on_system_start"].as_bool().unwrap();
     let config = Config {
         watch_paths,
         conversion_maps: conversion_map,
+        silent_start,
+        launch_on_system_start,
     };
 
     config
@@ -173,7 +178,7 @@ fn convert_image(image_src: &str, image_dst: &str) -> Result<String, MagickError
     });
     let wand = MagickWand::new();
     match wand.read_image(image_src) {
-        Ok(ok) => (),
+        Ok(_) => (),
         Err(e) => return Err(e),
     };
     match wand.write_image(image_dst) {
@@ -287,7 +292,7 @@ fn main() {
     tauri::Builder::default()
         .system_tray(tray)
         .setup(|app| {
-            let (config_path, config_file_path) = get_config_path();
+            let (_, config_file_path) = get_config_path();
 
             let main_window = app.get_window("main").unwrap();
 
@@ -329,6 +334,10 @@ fn main() {
                         each_new_watching_path["path"].as_str().unwrap()
                     );
                 }
+
+                let silent_start = new_config["silent_start"].as_bool().unwrap();
+                let launch_on_system_start =
+                    new_config["launch_on_system_start"].as_bool().unwrap();
                 fs::write(
                     &config_file_path,
                     serde_json::to_string_pretty(&new_config).unwrap(),
