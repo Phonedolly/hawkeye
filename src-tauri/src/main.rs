@@ -110,16 +110,22 @@ fn from_frontend_convert_directly(payload: &str) -> String {
 
     let src_path = src_and_format["src_path"].as_str().unwrap();
     let format = src_and_format["dst_format"].as_str().unwrap();
-    let dst_path = Path::new(format!("{}.{}", src_path, format).as_str());
-    let dst_path_as_str = match dst_path.exists() {
-        false => dst_path.to_str().unwrap(),
-        true => format!("{}.new.{}", src_path, format).as_str(),
+
+    let dst_path=format!("{}.{}", src_path, format);
+    let dst_path = Path::new(dst_path.as_str());
+
+    let dst_path_alter = format!("{}.new.{}", src_path, format);
+    let dst_path_alter = Path::new(dst_path_alter.as_str());
+ 
+    let dst_path = match dst_path.exists() {
+        false => String::from(dst_path.to_str().unwrap()),
+        true => String::from(dst_path_alter.to_str().unwrap())
     };
-    match convert_image(src_path, dst_path_as_str) {
+    match convert_image(src_path, dst_path.as_str()) {
         Ok(_) => {
             return json!({
                 "is_success": true,
-                "dst_path": dst_path,
+                "dst_path": String::from(dst_path.as_str()),
             })
             .to_string()
         }
