@@ -49,7 +49,7 @@
         "../icons/icon.ico"
       ],
       "identifier": "com.phonedolly.hawkeye",
-      "longDescription": "",
+      "longDescription": "Automatically Convert Images as a Format That You Want in Specific Folders",
       "macOS": {
         "entitlements": null,
         "exceptionDomain": "",

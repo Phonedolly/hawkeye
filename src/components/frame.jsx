@@ -22,7 +22,9 @@ export default function Frame(props) {
       <Box as="main" className="main-content" w="full" mx="auto">
         <Flex direction="row" px="6">
           <SideBar />
-          {props.children}
+          <VStack alignItems="stretch" w="full" spacing="4" mb="6">
+            {props.children}
+          </VStack>
         </Flex>
       </Box>
     </>

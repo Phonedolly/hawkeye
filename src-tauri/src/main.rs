@@ -109,7 +109,10 @@ fn from_frontend_convert_directly(convert_config: &str) -> String {
     let src_and_format = serde_json::from_str::<Value>(convert_config).unwrap();
 
     let src_path = src_and_format["src_path"].as_str().unwrap();
-    let format = src_and_format["dst_format"].as_str().unwrap().to_lowercase();
+    let format = src_and_format["dst_format"]
+        .as_str()
+        .unwrap()
+        .to_lowercase();
 
     let dst_path = format!("{}.{}", src_path, format);
     let dst_path = Path::new(dst_path.as_str());
@@ -154,7 +157,7 @@ fn get_config() -> Config {
     let config = {
         let text = match std::fs::read_to_string(&config_file_path) {
             Ok(content) => {
-                println!("Found Config JSON File!");
+                println!("Found JSON Config File!");
                 content
             }
             Err(_) => {

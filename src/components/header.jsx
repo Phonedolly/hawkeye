@@ -13,7 +13,7 @@ export default function Header(props) {
   return (
     <Box p="10">
       <Flex direction="row" justifyContent="space-between" alignItems="center">
-        <Heading>🤫HawkEye</Heading>
+        <Heading>🕊️HawkEye</Heading>
         <Heading size="sm">{appVersion}</Heading>
       </Flex>
     </Box>

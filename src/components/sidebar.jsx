@@ -72,6 +72,11 @@ export const mainNavLinks = [
     href: "/settings",
     label: "Settings",
   },
+  {
+    icon: <InfoIcon />,
+    href: "/about",
+    label: "About",
+  },
 ];
 
 export const MainNavLinkGroup = () => {
