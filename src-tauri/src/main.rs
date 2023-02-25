@@ -105,33 +105,33 @@ fn from_frontend_get_config() -> Config {
 }
 
 #[tauri::command]
-fn from_frontend_convert_directly(payload: &str) -> String {
-    let src_and_format = serde_json::from_str::<Value>(payload).unwrap();
+fn from_frontend_convert_directly(convert_config: &str) -> String {
+    let src_and_format = serde_json::from_str::<Value>(convert_config).unwrap();
 
     let src_path = src_and_format["src_path"].as_str().unwrap();
-    let format = src_and_format["dst_format"].as_str().unwrap();
+    let format = src_and_format["dst_format"].as_str().unwrap().to_lowercase();
 
-    let dst_path=format!("{}.{}", src_path, format);
+    let dst_path = format!("{}.{}", src_path, format);
     let dst_path = Path::new(dst_path.as_str());
 
     let dst_path_alter = format!("{}.new.{}", src_path, format);
     let dst_path_alter = Path::new(dst_path_alter.as_str());
- 
+
     let dst_path = match dst_path.exists() {
         false => String::from(dst_path.to_str().unwrap()),
-        true => String::from(dst_path_alter.to_str().unwrap())
+        true => String::from(dst_path_alter.to_str().unwrap()),
     };
     match convert_image(src_path, dst_path.as_str()) {
         Ok(_) => {
             return json!({
-                "is_success": true,
+                "success": true,
                 "dst_path": String::from(dst_path.as_str()),
             })
             .to_string()
         }
         Err(_) => {
             return json!({
-                "is_success": false
+                "success": false
             })
             .to_string()
         }
@@ -373,7 +373,11 @@ fn main() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, from_frontend_get_config])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            from_frontend_get_config,
+            from_frontend_convert_directly
+        ])
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::DoubleClick {
                 tray_id,

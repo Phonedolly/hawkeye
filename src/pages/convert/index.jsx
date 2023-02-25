@@ -12,10 +12,11 @@ import {
 import { useEffect, useState } from "react";
 import { v4 as uuid } from "uuid";
 // import { listen } from "@tauri-apps/api/event";
-import { convertFileSrc } from '@tauri-apps/api/tauri';
-import { open } from "@tauri-apps/api/dialog";
+import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { open, message } from "@tauri-apps/api/dialog";
 import Frame from "../../components/frame";
 import formats from "../../lib/formats";
+import { invoke } from "@tauri-apps/api";
 
 export default function Convert(props) {
   const [dstFormat, setDstFormat] = useState("PNG");
@@ -72,7 +73,28 @@ export default function Convert(props) {
               </option>
             ))}
           </Select>
-          <Button isDisabled={!submitted} width="32" colorScheme="teal">
+          <Button
+            isDisabled={!submitted}
+            width="32"
+            colorScheme="teal"
+            onClick={async () => {
+              const convertResult = JSON.parse(
+                await invoke("from_frontend_convert_directly", {
+                  convertConfig: JSON.stringify({
+                    src_path: srcPath,
+                    dst_format: dstFormat,
+                  }),
+                })
+              );
+              console.log(convertResult);
+              if (convertResult.success === true) {
+                await message(
+                  `Image File Saved at ${convertResult.dst_path}!`,
+                  { title: "Successfully Converted", type: "info" }
+                );
+              }
+            }}
+          >
             Convert
           </Button>
         </HStack>
