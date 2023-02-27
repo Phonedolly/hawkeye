@@ -1,14 +1,8 @@
 import {
-  Button,
   Box,
-  Container,
   Flex,
-  Heading,
-  IconButton,
-  Text,
   VStack,
 } from "@chakra-ui/react";
-import { useState } from "react";
 import { useRouter } from "next/router";
 import Header from "./header";
 import SideBar from "./sidebar";

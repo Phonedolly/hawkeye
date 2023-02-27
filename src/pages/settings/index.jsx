@@ -12,8 +12,8 @@ import {
   Tooltip,
   VStack,
 } from "@chakra-ui/react";
-import { open, message } from "@tauri-apps/api/dialog";
 import { invoke } from "@tauri-apps/api/tauri";
+import { enable, isEnabled, disable } from "tauri-plugin-autostart-api";
 import { useEffect, useState } from "react";
 import Frame from "../../components/frame";
 import { Input } from "@chakra-ui/react";
@@ -24,7 +24,9 @@ import formats from "../../lib/formats";
 
 export default function Settings(props) {
   const [config, setConfig] = useState({});
+  const [autoStart, setAutoStart] = useState(false);
   const [modified, setModified] = useState(false);
+
   async function getConfig() {
     const fetchedConfig = await invoke("from_frontend_get_config");
     setConfig(() => ({
@@ -34,6 +36,14 @@ export default function Settings(props) {
   useEffect(() => {
     getConfig();
   }, []);
+
+  useEffect(() => {
+    async function getAutoStartConfig() {
+      setAutoStart(await isEnabled());
+    }
+    getAutoStartConfig();
+  }, [autoStart]);
+
   return (
     <Frame>
       <Heading>Settings</Heading>
@@ -67,6 +77,7 @@ export default function Settings(props) {
             <IconButton
               icon={<Search2Icon />}
               onClick={async () => {
+                const { open } = await import("@tauri-apps/api/dialog");
                 const selected = await open({
                   directory: true,
                   multiple: false,
@@ -114,6 +125,7 @@ export default function Settings(props) {
       ))}
       <Button
         onClick={async () => {
+          const { open, message } = await import("@tauri-apps/api/dialog");
           setModified(true);
           const selected = await open({
             directory: true,
@@ -266,7 +278,7 @@ export default function Settings(props) {
       </Checkbox>
       <Checkbox
         isChecked={config.launch_on_system_start}
-        onChange={(e) => {
+        onChange={async (e) => {
           setModified(true);
           setConfig((prevConfig) => ({
             ...prevConfig,
@@ -283,6 +295,7 @@ export default function Settings(props) {
         isDisabled={!modified}
         colorScheme="teal"
         onClick={async () => {
+          const { message } = await import("@tauri-apps/api/dialog");
           setModified(false);
           let conversionMapDuplicate = false;
           for (let i = 0; i < config.conversion_maps.length - 1; i++) {
@@ -306,6 +319,11 @@ export default function Settings(props) {
               type: "error",
             });
             return;
+          }
+          if (config.launch_on_system_start === false) {
+            await disable();
+          } else {
+            await enable();
           }
           const { appWindow } = await import("@tauri-apps/api/window");
           appWindow

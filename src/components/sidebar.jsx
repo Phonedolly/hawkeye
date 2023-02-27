@@ -5,6 +5,7 @@ import {
   InfoIcon,
   RepeatClockIcon,
   SettingsIcon,
+  SunIcon
 } from "@chakra-ui/icons";
 import {
   Badge,
@@ -53,7 +54,7 @@ const MainNavLink = ({ href, icon, children, isActive, isExternal }) => {
 
 export const mainNavLinks = [
   {
-    icon: <InfoIcon />,
+    icon: <SunIcon />,
     href: "/",
     label: "Insight",
   },
@@ -62,11 +63,11 @@ export const mainNavLinks = [
     href: "/convert",
     label: "Convert",
   },
-  {
-    icon: <RepeatClockIcon />,
-    href: "/history",
-    label: "History",
-  },
+  // {
+  //   icon: <RepeatClockIcon />,
+  //   href: "/history",
+  //   label: "History",
+  // },
   {
     icon: <SettingsIcon />,
     href: "/settings",

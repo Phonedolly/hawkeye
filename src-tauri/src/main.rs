@@ -18,6 +18,7 @@ use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
     Window,
 };
+use tauri_plugin_autostart::MacosLauncher;
 use winrt_notification::Toast;
 
 // Used to make sure MagickWand is initialized exactly once. Note that we
@@ -317,8 +318,12 @@ fn main() {
         .add_item(quit);
 
     let tray = SystemTray::new().with_menu(tray_menu);
-    let p = Path::new("../tauri.conf.hideStart.json").to_str().unwrap();
+
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec![]), /* arbitrary number of args to pass to your app */
+        ))
         .system_tray(tray)
         .setup(|app| {
             let (_, config_file_path) = get_config_path();

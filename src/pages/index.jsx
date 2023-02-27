@@ -57,15 +57,25 @@ function App() {
       <Frame>
         <ScaleFade initialScale={0.9} in={true}>
           <VStack align="start" spacing="12">
-            <HStack>
-              <Heading size="4xl">🔭</Heading>
-              <VStack align="start" spacing="1">
-                <Heading size="3xl" color="">
-                  <b>{config.watch_paths.length}</b> Directories
-                </Heading>
-                <Heading size="lg">are Being Watched.</Heading>
+            <VStack align="start" spacing="4">
+              <HStack>
+                <Heading size="4xl">🔭</Heading>
+                <VStack align="start" spacing="1">
+                  <Heading size="3xl" color="">
+                    <b>{config.watch_paths.length}</b> Directories
+                  </Heading>
+                  <Heading size="lg">are Being Watched.</Heading>
+                </VStack>
+              </HStack>
+              <VStack align="start" pl="2">
+                {config.watch_paths.map((eachPath) => (
+                  <Text fontStyle="italic" fontWeight="bold" color="grey" textAlign="start">
+                    {eachPath.path}
+                  </Text>
+                ))}
               </VStack>
-            </HStack>
+            </VStack>
+
             <VStack w="full" align="start">
               <HStack>
                 <Heading size="3xl">➡️</Heading>
