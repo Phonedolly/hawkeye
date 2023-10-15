@@ -1,33 +1,18 @@
 {
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "build": {
-    "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist",
-    "withGlobalTauri": false
+    "beforeDevCommand": "npm run dev",
+    "devPath": "http://localhost:3000",
+    "distDir": "../out"
   },
   "package": {
     "productName": "hawkeye",
-    "version": "0.0.1"
+    "version": "0.1.0"
   },
   "tauri": {
     "allowlist": {
-      "all": false,
-      "dialog": {
-        "all": false,
-        "ask": false,
-        "confirm": false,
-        "message": true,
-        "open": true,
-        "save": false
-      },
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "window": {
-        "all": true
-      }
+      "all": false
     },
     "bundle": {
       "active": true,
@@ -44,8 +29,8 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.phonedolly.hawkeye",
-      "longDescription": "Automatically Convert Images as a Format That You Want in Specific Folders",
+      "identifier": "com.tauri.dev",
+      "longDescription": "",
       "macOS": {
         "entitlements": null,
         "exceptionDomain": "",
@@ -62,9 +47,8 @@
         "timestampUrl": ""
       }
     },
-    "systemTray": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true
+    "security": {
+      "csp": null
     },
     "updater": {
       "active": false
@@ -72,11 +56,10 @@
     "windows": [
       {
         "fullscreen": false,
-        "fileDropEnabled": true,
         "height": 600,
+        "resizable": true,
         "title": "hawkeye",
-        "width": 800,
-        "resizable": false
+        "width": 800
       }
     ]
   }
